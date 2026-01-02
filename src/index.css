@@ -175,7 +175,8 @@
   }
 
   .card-interactive:hover {
-    @apply shadow-lg border-primary/20;
+    @apply shadow-lg border-primary/30;
+    background-color: hsl(var(--primary) / 0.05);
     transform: translateY(-2px);
     box-shadow: 
       0 10px 25px -5px rgb(0 0 0 / 0.08),
