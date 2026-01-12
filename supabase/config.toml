@@ -2,3 +2,6 @@ project_id = "jllvchazpscdduhceusb"
 
 [functions.check-drug-interactions]
 verify_jwt = false
+
+[functions.health-insights]
+verify_jwt = false

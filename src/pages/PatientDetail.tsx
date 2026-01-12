@@ -8,6 +8,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, differenceInYears } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { AIHealthInsights } from '@/components/patients/AIHealthInsights';
+import { Telemedicine } from '@/components/telemedicine/Telemedicine';
 
 export default function PatientDetail() {
   const { id } = useParams();
@@ -126,7 +128,11 @@ export default function PatientDetail() {
             <p className="text-muted-foreground">{patient.caretag_id} • Age {age} • {patient.gender}</p>
           </div>
         </div>
-        <Badge variant="secondary">{patient.chronic_conditions?.length ? 'Has Conditions' : 'Healthy'}</Badge>
+        <div className="flex items-center gap-2">
+          <AIHealthInsights patientId={id!} patientName={patient.full_name} />
+          <Telemedicine patientName={patient.full_name} patientId={id} />
+          <Badge variant="secondary">{patient.chronic_conditions?.length ? 'Has Conditions' : 'Healthy'}</Badge>
+        </div>
       </div>
 
       {/* Emergency Info Card */}
