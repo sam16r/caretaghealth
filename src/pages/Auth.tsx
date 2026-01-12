@@ -5,14 +5,28 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Activity, Shield, Stethoscope, AlertCircle, Sparkles } from 'lucide-react';
+import { Activity, Shield, Stethoscope, AlertCircle, Sparkles, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { SignupStepper } from '@/components/auth/SignupStepper';
+import { AccountSetupStep } from '@/components/auth/signup-steps/AccountSetupStep';
+import { ProfessionalDetailsStep } from '@/components/auth/signup-steps/ProfessionalDetailsStep';
+import { DoctorVerificationStep } from '@/components/auth/signup-steps/DoctorVerificationStep';
+import { PracticeDetailsStep } from '@/components/auth/signup-steps/PracticeDetailsStep';
+import { ReviewSubmitStep } from '@/components/auth/signup-steps/ReviewSubmitStep';
 
 const emailSchema = z.string().email('Please enter a valid email address');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
+const phoneSchema = z.string().min(10, 'Please enter a valid mobile number');
+
+const SIGNUP_STEPS = [
+  { title: 'Account', description: 'Basic account details' },
+  { title: 'Professional', description: 'Your qualifications' },
+  { title: 'Verification', description: 'Doctor verification' },
+  { title: 'Practice', description: 'Your practice info' },
+  { title: 'Review', description: 'Review & submit' }
+];
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -20,20 +34,55 @@ export default function Auth() {
   const { toast } = useToast();
   
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('login');
+  const [view, setView] = useState<'login' | 'signup' | 'success'>('login');
+  const [signupStep, setSignupStep] = useState(0);
   
   // Login form
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   
-  // Signup form
-  const [signupEmail, setSignupEmail] = useState('');
-  const [signupPassword, setSignupPassword] = useState('');
-  const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
-  const [signupFullName, setSignupFullName] = useState('');
-  const [signupRole, setSignupRole] = useState<'doctor' | 'admin'>('doctor');
-  const [signupError, setSignupError] = useState('');
+  // Signup form data
+  const [accountData, setAccountData] = useState({
+    fullName: '',
+    email: '',
+    mobileNumber: '',
+    password: '',
+    confirmPassword: ''
+  });
+  
+  const [professionalData, setProfessionalData] = useState({
+    primaryQualification: '',
+    specialization: '',
+    yearsOfExperience: '',
+    languagesSpoken: [] as string[]
+  });
+  
+  const [verificationData, setVerificationData] = useState({
+    medicalCouncilNumber: '',
+    registeringAuthority: '',
+    registrationYear: '',
+    degreeCertificate: null as File | null,
+    idProof: null as File | null,
+    professionalPhoto: null as File | null
+  });
+  
+  const [practiceData, setPracticeData] = useState({
+    clinicName: '',
+    clinicAddress: '',
+    city: '',
+    state: '',
+    consultationType: ''
+  });
+  
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  
+  // Errors
+  const [accountErrors, setAccountErrors] = useState<Record<string, string>>({});
+  const [professionalErrors, setProfessionalErrors] = useState<Record<string, string>>({});
+  const [verificationErrors, setVerificationErrors] = useState<Record<string, string>>({});
+  const [practiceErrors, setPracticeErrors] = useState<Record<string, string>>({});
+  const [termsError, setTermsError] = useState('');
 
   useEffect(() => {
     if (user && !loading) {
@@ -68,48 +117,248 @@ export default function Auth() {
     }
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSignupError('');
+  const validateAccountStep = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!accountData.fullName.trim()) {
+      errors.fullName = 'Full name is required';
+    }
     
     try {
-      emailSchema.parse(signupEmail);
-      passwordSchema.parse(signupPassword);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        setSignupError(err.errors[0].message);
-        return;
-      }
+      emailSchema.parse(accountData.email);
+    } catch {
+      errors.email = 'Please enter a valid email address';
     }
     
-    if (signupPassword !== signupConfirmPassword) {
-      setSignupError('Passwords do not match');
-      return;
+    try {
+      phoneSchema.parse(accountData.mobileNumber.replace(/\s/g, ''));
+    } catch {
+      errors.mobileNumber = 'Please enter a valid mobile number';
     }
     
-    if (!signupFullName.trim()) {
-      setSignupError('Please enter your full name');
-      return;
+    try {
+      passwordSchema.parse(accountData.password);
+    } catch {
+      errors.password = 'Password must be at least 6 characters';
     }
     
-    setIsLoading(true);
-    const { error } = await signUp(signupEmail, signupPassword, signupFullName, signupRole);
-    setIsLoading(false);
+    if (accountData.password !== accountData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+    
+    setAccountErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateProfessionalStep = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!professionalData.primaryQualification) {
+      errors.primaryQualification = 'Primary qualification is required';
+    }
+    
+    if (!professionalData.yearsOfExperience) {
+      errors.yearsOfExperience = 'Years of experience is required';
+    }
+    
+    if (professionalData.languagesSpoken.length === 0) {
+      errors.languagesSpoken = 'Please select at least one language';
+    }
+    
+    setProfessionalErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateVerificationStep = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!verificationData.medicalCouncilNumber.trim()) {
+      errors.medicalCouncilNumber = 'Registration number is required';
+    }
+    
+    if (!verificationData.registeringAuthority) {
+      errors.registeringAuthority = 'Registering authority is required';
+    }
+    
+    if (!verificationData.registrationYear) {
+      errors.registrationYear = 'Registration year is required';
+    }
+    
+    if (!verificationData.degreeCertificate) {
+      errors.degreeCertificate = 'Degree certificate is required';
+    }
+    
+    if (!verificationData.idProof) {
+      errors.idProof = 'ID proof is required';
+    }
+    
+    if (!verificationData.professionalPhoto) {
+      errors.professionalPhoto = 'Professional photo is required';
+    }
+    
+    setVerificationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validatePracticeStep = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!practiceData.clinicName.trim()) {
+      errors.clinicName = 'Clinic/Hospital name is required';
+    }
+    
+    if (!practiceData.clinicAddress.trim()) {
+      errors.clinicAddress = 'Address is required';
+    }
+    
+    if (!practiceData.city.trim()) {
+      errors.city = 'City is required';
+    }
+    
+    if (!practiceData.state) {
+      errors.state = 'State is required';
+    }
+    
+    if (!practiceData.consultationType) {
+      errors.consultationType = 'Please select a consultation type';
+    }
+    
+    setPracticeErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleNextStep = () => {
+    let isValid = false;
+    
+    switch (signupStep) {
+      case 0:
+        isValid = validateAccountStep();
+        break;
+      case 1:
+        isValid = validateProfessionalStep();
+        break;
+      case 2:
+        isValid = validateVerificationStep();
+        break;
+      case 3:
+        isValid = validatePracticeStep();
+        break;
+      default:
+        isValid = true;
+    }
+    
+    if (isValid) {
+      setSignupStep(prev => Math.min(prev + 1, SIGNUP_STEPS.length - 1));
+    }
+  };
+
+  const handlePrevStep = () => {
+    setSignupStep(prev => Math.max(prev - 1, 0));
+  };
+
+  const uploadFile = async (file: File, userId: string, folder: string): Promise<string | null> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/${folder}/${Date.now()}.${fileExt}`;
+    
+    const { error } = await supabase.storage
+      .from('doctor-documents')
+      .upload(fileName, file);
     
     if (error) {
-      if (error.message.includes('already registered')) {
-        setSignupError('This email is already registered. Please log in instead.');
-      } else {
-        setSignupError(error.message);
-      }
-    } else {
-      toast({
-        title: 'Account created successfully!',
-        description: 'You can now log in with your credentials.',
-      });
-      setActiveTab('login');
-      setLoginEmail(signupEmail);
+      console.error('Upload error:', error);
+      return null;
     }
+    
+    return fileName;
+  };
+
+  const handleSubmit = async () => {
+    if (!termsAccepted) {
+      setTermsError('Please accept the terms and conditions');
+      return;
+    }
+    setTermsError('');
+    
+    setIsLoading(true);
+    
+    try {
+      // Create the user account
+      const { error: signUpError } = await signUp(
+        accountData.email,
+        accountData.password,
+        accountData.fullName,
+        'doctor'
+      );
+      
+      if (signUpError) {
+        if (signUpError.message.includes('already registered')) {
+          toast({
+            title: 'Email already registered',
+            description: 'This email is already registered. Please log in instead.',
+            variant: 'destructive'
+          });
+        } else {
+          toast({
+            title: 'Signup failed',
+            description: signUpError.message,
+            variant: 'destructive'
+          });
+        }
+        setIsLoading(false);
+        return;
+      }
+      
+      // Get the user session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        // Upload files
+        const [degreeUrl, idProofUrl, photoUrl] = await Promise.all([
+          verificationData.degreeCertificate ? uploadFile(verificationData.degreeCertificate, session.user.id, 'degree') : null,
+          verificationData.idProof ? uploadFile(verificationData.idProof, session.user.id, 'id-proof') : null,
+          verificationData.professionalPhoto ? uploadFile(verificationData.professionalPhoto, session.user.id, 'photo') : null
+        ]);
+        
+        // Update profile with additional data
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            mobile_number: accountData.mobileNumber,
+            specialization: professionalData.specialization,
+            primary_qualification: professionalData.primaryQualification,
+            years_of_experience: parseInt(professionalData.yearsOfExperience) || 0,
+            languages_spoken: professionalData.languagesSpoken,
+            medical_council_number: verificationData.medicalCouncilNumber,
+            registering_authority: verificationData.registeringAuthority,
+            registration_year: parseInt(verificationData.registrationYear) || null,
+            degree_certificate_url: degreeUrl,
+            id_proof_url: idProofUrl,
+            professional_photo_url: photoUrl,
+            clinic_name: practiceData.clinicName,
+            clinic_address: practiceData.clinicAddress,
+            city: practiceData.city,
+            state: practiceData.state,
+            consultation_type: practiceData.consultationType,
+            verification_status: 'pending'
+          })
+          .eq('id', session.user.id);
+        
+        if (profileError) {
+          console.error('Profile update error:', profileError);
+        }
+      }
+      
+      setView('success');
+    } catch (error) {
+      console.error('Signup error:', error);
+      toast({
+        title: 'Something went wrong',
+        description: 'Please try again later.',
+        variant: 'destructive'
+      });
+    }
+    
+    setIsLoading(false);
   };
 
   if (loading) {
@@ -121,6 +370,41 @@ export default function Auth() {
           </div>
           <span className="text-muted-foreground font-medium">Loading CareTag...</span>
         </div>
+      </div>
+    );
+  }
+
+  // Success screen after signup
+  if (view === 'success') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-8">
+        <Card className="w-full max-w-md border-border/50 shadow-xl shadow-black/5 rounded-2xl text-center">
+          <CardContent className="p-8">
+            <div className="mx-auto h-16 w-16 rounded-full bg-success/10 flex items-center justify-center mb-6">
+              <Shield className="h-8 w-8 text-success" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Application Submitted!</h2>
+            <p className="text-muted-foreground mb-6">
+              Your doctor registration application has been submitted successfully. 
+              Our team will verify your credentials within 24-48 hours.
+            </p>
+            <div className="p-4 rounded-xl bg-muted/50 border border-border mb-6">
+              <p className="text-sm">
+                <span className="font-medium">Verification Status:</span>{' '}
+                <span className="text-warning">Pending Review</span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                You'll receive an email once your account is verified.
+              </p>
+            </div>
+            <Button 
+              className="w-full h-11 rounded-xl font-semibold"
+              onClick={() => setView('login')}
+            >
+              Back to Login
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -170,8 +454,8 @@ export default function Auth() {
                 <Shield className="h-6 w-6" />
               </div>
               <div>
-                <p className="font-semibold text-sidebar-foreground">Secure & Compliant</p>
-                <p className="text-sm text-sidebar-foreground/60">Role-based access control</p>
+                <p className="font-semibold text-sidebar-foreground">Verified Doctors Only</p>
+                <p className="text-sm text-sidebar-foreground/60">Ensuring patient safety and trust</p>
               </div>
             </div>
             <div className="flex items-center gap-4 text-sidebar-foreground/80">
@@ -192,153 +476,219 @@ export default function Auth() {
       </div>
       
       {/* Right side - Auth form */}
-      <div className="flex w-full lg:w-1/2 items-center justify-center p-8 bg-muted/30">
+      <div className="flex w-full lg:w-1/2 items-center justify-center p-6 sm:p-8 bg-muted/30 overflow-y-auto">
         <div className="w-full max-w-md animate-fade-in">
           {/* Mobile logo */}
-          <div className="flex lg:hidden items-center justify-center gap-3 mb-10">
+          <div className="flex lg:hidden items-center justify-center gap-3 mb-8">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl gradient-primary shadow-lg shadow-primary/30">
               <Activity className="h-6 w-6 text-primary-foreground" />
             </div>
             <span className="text-2xl font-bold tracking-tight">CareTag</span>
           </div>
           
-          <Card className="border-border/50 shadow-xl shadow-black/5 rounded-2xl">
-            <CardHeader className="text-center pb-2 pt-8">
-              <CardTitle className="text-2xl font-bold tracking-tight">Welcome back</CardTitle>
-              <CardDescription className="text-base">
-                Sign in to your account to continue
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 pt-4">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-2 h-11 rounded-xl p-1">
-                  <TabsTrigger value="login" className="rounded-lg font-medium">Sign In</TabsTrigger>
-                  <TabsTrigger value="signup" className="rounded-lg font-medium">Sign Up</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="login" className="space-y-4 mt-6">
-                  <form onSubmit={handleLogin} className="space-y-4">
-                    {loginError && (
-                      <div className="flex items-center gap-2 p-3.5 rounded-xl bg-destructive/10 text-destructive text-sm font-medium">
-                        <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                        {loginError}
-                      </div>
-                    )}
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="login-email" className="text-sm font-medium">Email</Label>
-                      <Input
-                        id="login-email"
-                        type="email"
-                        placeholder="doctor@hospital.com"
-                        value={loginEmail}
-                        onChange={(e) => setLoginEmail(e.target.value)}
-                        className="h-11 rounded-xl"
-                        required
-                      />
+          {view === 'login' ? (
+            <Card className="border-border/50 shadow-xl shadow-black/5 rounded-2xl">
+              <CardHeader className="text-center pb-2 pt-8">
+                <CardTitle className="text-2xl font-bold tracking-tight">Welcome back</CardTitle>
+                <CardDescription className="text-base">
+                  Sign in to your account to continue
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-6 pt-4">
+                <form onSubmit={handleLogin} className="space-y-4">
+                  {loginError && (
+                    <div className="flex items-center gap-2 p-3.5 rounded-xl bg-destructive/10 text-destructive text-sm font-medium">
+                      <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                      {loginError}
                     </div>
-                    
-                    <div className="space-y-2">
+                  )}
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="login-email" className="text-sm font-medium">Email or Mobile Number</Label>
+                    <Input
+                      id="login-email"
+                      type="text"
+                      placeholder="doctor@hospital.com"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      className="h-11 rounded-xl"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
                       <Label htmlFor="login-password" className="text-sm font-medium">Password</Label>
-                      <Input
-                        id="login-password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        className="h-11 rounded-xl"
-                        required
-                      />
+                      <button 
+                        type="button" 
+                        className="text-xs text-primary font-medium hover:underline"
+                        onClick={() => toast({ title: 'Coming soon', description: 'Password reset functionality will be available soon.' })}
+                      >
+                        Forgot Password?
+                      </button>
                     </div>
-                    
-                    <Button type="submit" className="w-full h-11 rounded-xl font-semibold shadow-lg shadow-primary/25" disabled={isLoading}>
-                      {isLoading ? 'Signing in...' : 'Sign In'}
-                    </Button>
-                  </form>
-                </TabsContent>
-                
-                <TabsContent value="signup" className="space-y-4 mt-6">
-                  <form onSubmit={handleSignup} className="space-y-4">
-                    {signupError && (
-                      <div className="flex items-center gap-2 p-3.5 rounded-xl bg-destructive/10 text-destructive text-sm font-medium">
-                        <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                        {signupError}
-                      </div>
+                    <Input
+                      id="login-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      className="h-11 rounded-xl"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
+                    <p className="text-xs text-muted-foreground text-center">
+                      <Shield className="h-3.5 w-3.5 inline mr-1" />
+                      Only verified doctors can access this app.
+                    </p>
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full h-11 rounded-xl font-semibold shadow-lg shadow-primary/25" 
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Signing in...
+                      </>
+                    ) : (
+                      'Sign In'
                     )}
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-name" className="text-sm font-medium">Full Name</Label>
-                      <Input
-                        id="signup-name"
-                        type="text"
-                        placeholder="Dr. John Smith"
-                        value={signupFullName}
-                        onChange={(e) => setSignupFullName(e.target.value)}
-                        className="h-11 rounded-xl"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-email" className="text-sm font-medium">Email</Label>
-                      <Input
-                        id="signup-email"
-                        type="email"
-                        placeholder="doctor@hospital.com"
-                        value={signupEmail}
-                        onChange={(e) => setSignupEmail(e.target.value)}
-                        className="h-11 rounded-xl"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-role" className="text-sm font-medium">Role</Label>
-                      <Select value={signupRole} onValueChange={(v) => setSignupRole(v as 'doctor' | 'admin')}>
-                        <SelectTrigger className="h-11 rounded-xl">
-                          <SelectValue placeholder="Select your role" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          <SelectItem value="doctor" className="rounded-lg">Doctor</SelectItem>
-                          <SelectItem value="admin" className="rounded-lg">Hospital Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-password" className="text-sm font-medium">Password</Label>
-                      <Input
-                        id="signup-password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={signupPassword}
-                        onChange={(e) => setSignupPassword(e.target.value)}
-                        className="h-11 rounded-xl"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-confirm-password" className="text-sm font-medium">Confirm Password</Label>
-                      <Input
-                        id="signup-confirm-password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={signupConfirmPassword}
-                        onChange={(e) => setSignupConfirmPassword(e.target.value)}
-                        className="h-11 rounded-xl"
-                        required
-                      />
-                    </div>
-                    
-                    <Button type="submit" className="w-full h-11 rounded-xl font-semibold shadow-lg shadow-primary/25" disabled={isLoading}>
-                      {isLoading ? 'Creating account...' : 'Create Account'}
+                  </Button>
+                </form>
+                
+                <div className="mt-6 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    New doctor?{' '}
+                    <button 
+                      className="text-primary font-medium hover:underline"
+                      onClick={() => {
+                        setView('signup');
+                        setSignupStep(0);
+                      }}
+                    >
+                      Create an account
+                    </button>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-border/50 shadow-xl shadow-black/5 rounded-2xl">
+              <CardHeader className="pb-4 pt-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <button 
+                    onClick={() => setView('login')}
+                    className="h-8 w-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                  <div>
+                    <CardTitle className="text-xl font-bold tracking-tight">Doctor Registration</CardTitle>
+                    <CardDescription className="text-sm">
+                      Step {signupStep + 1} of {SIGNUP_STEPS.length}
+                    </CardDescription>
+                  </div>
+                </div>
+                <SignupStepper currentStep={signupStep} steps={SIGNUP_STEPS} />
+              </CardHeader>
+              <CardContent className="p-6 pt-2">
+                <div className="min-h-[350px]">
+                  {signupStep === 0 && (
+                    <AccountSetupStep
+                      data={accountData}
+                      onChange={(data) => setAccountData(prev => ({ ...prev, ...data }))}
+                      errors={accountErrors}
+                    />
+                  )}
+                  
+                  {signupStep === 1 && (
+                    <ProfessionalDetailsStep
+                      data={professionalData}
+                      onChange={(data) => setProfessionalData(prev => ({ ...prev, ...data }))}
+                      errors={professionalErrors}
+                    />
+                  )}
+                  
+                  {signupStep === 2 && (
+                    <DoctorVerificationStep
+                      data={verificationData}
+                      onChange={(data) => setVerificationData(prev => ({ ...prev, ...data }))}
+                      errors={verificationErrors}
+                    />
+                  )}
+                  
+                  {signupStep === 3 && (
+                    <PracticeDetailsStep
+                      data={practiceData}
+                      onChange={(data) => setPracticeData(prev => ({ ...prev, ...data }))}
+                      errors={practiceErrors}
+                    />
+                  )}
+                  
+                  {signupStep === 4 && (
+                    <ReviewSubmitStep
+                      data={{
+                        account: accountData,
+                        professional: professionalData,
+                        verification: verificationData,
+                        practice: practiceData,
+                        termsAccepted
+                      }}
+                      onTermsChange={setTermsAccepted}
+                      error={termsError}
+                    />
+                  )}
+                </div>
+                
+                <div className="flex gap-3 mt-6">
+                  {signupStep > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1 h-11 rounded-xl font-medium"
+                      onClick={handlePrevStep}
+                      disabled={isLoading}
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Previous
                     </Button>
-                  </form>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                  )}
+                  
+                  {signupStep < SIGNUP_STEPS.length - 1 ? (
+                    <Button
+                      type="button"
+                      className="flex-1 h-11 rounded-xl font-semibold shadow-lg shadow-primary/25"
+                      onClick={handleNextStep}
+                    >
+                      Next
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      className="flex-1 h-11 rounded-xl font-semibold shadow-lg shadow-primary/25"
+                      onClick={handleSubmit}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Submitting...
+                        </>
+                      ) : (
+                        'Submit for Verification'
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
