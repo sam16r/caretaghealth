@@ -257,15 +257,55 @@ export type Database = {
         }
         Relationships: []
       }
+      prescription_templates: {
+        Row: {
+          created_at: string
+          diagnosis: string | null
+          doctor_id: string
+          id: string
+          is_favorite: boolean
+          medications: Json
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          diagnosis?: string | null
+          doctor_id: string
+          id?: string
+          is_favorite?: boolean
+          medications?: Json
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          diagnosis?: string | null
+          doctor_id?: string
+          id?: string
+          is_favorite?: boolean
+          medications?: Json
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       prescriptions: {
         Row: {
           created_at: string
           diagnosis: string | null
           doctor_id: string
           id: string
+          last_refill_date: string | null
+          max_refills: number | null
           medications: Json
+          next_refill_reminder: string | null
           notes: string | null
           patient_id: string
+          refill_count: number | null
           status: Database["public"]["Enums"]["prescription_status"]
           updated_at: string
           valid_until: string | null
@@ -275,9 +315,13 @@ export type Database = {
           diagnosis?: string | null
           doctor_id: string
           id?: string
+          last_refill_date?: string | null
+          max_refills?: number | null
           medications?: Json
+          next_refill_reminder?: string | null
           notes?: string | null
           patient_id: string
+          refill_count?: number | null
           status?: Database["public"]["Enums"]["prescription_status"]
           updated_at?: string
           valid_until?: string | null
@@ -287,9 +331,13 @@ export type Database = {
           diagnosis?: string | null
           doctor_id?: string
           id?: string
+          last_refill_date?: string | null
+          max_refills?: number | null
           medications?: Json
+          next_refill_reminder?: string | null
           notes?: string | null
           patient_id?: string
+          refill_count?: number | null
           status?: Database["public"]["Enums"]["prescription_status"]
           updated_at?: string
           valid_until?: string | null
