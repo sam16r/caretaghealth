@@ -1,1 +1,4 @@
 project_id = "jllvchazpscdduhceusb"
+
+[functions.check-drug-interactions]
+verify_jwt = false
