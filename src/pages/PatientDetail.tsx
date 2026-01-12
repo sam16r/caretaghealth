@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { User, Heart, AlertTriangle, FileText, Pill, Activity, Calendar, Phone, Mail, MapPin, Clock, Mic } from 'lucide-react';
+import { User, Heart, AlertTriangle, FileText, Pill, Activity, Calendar, Phone, Mail, MapPin, Clock, Mic, FlaskConical, UserCheck } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, differenceInYears } from 'date-fns';
@@ -12,6 +12,8 @@ import { AIHealthInsights } from '@/components/patients/AIHealthInsights';
 import { Telemedicine } from '@/components/telemedicine/Telemedicine';
 import { MedicalHistoryTimeline } from '@/components/patients/MedicalHistoryTimeline';
 import { VoiceToText } from '@/components/voice/VoiceToText';
+import { LabResultsPanel } from '@/components/lab-results/LabResultsPanel';
+import { ReferralManagement } from '@/components/referrals/ReferralManagement';
 
 export default function PatientDetail() {
   const { id } = useParams();
@@ -157,6 +159,8 @@ export default function PatientDetail() {
         <TabsList className="flex-wrap">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          <TabsTrigger value="lab-results" className="gap-1"><FlaskConical className="h-3 w-3" />Lab Results</TabsTrigger>
+          <TabsTrigger value="referrals" className="gap-1"><UserCheck className="h-3 w-3" />Referrals</TabsTrigger>
           <TabsTrigger value="history">Medical History</TabsTrigger>
           <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
           <TabsTrigger value="vitals">Vitals Timeline</TabsTrigger>
@@ -212,6 +216,16 @@ export default function PatientDetail() {
         {/* Timeline Tab - Visual Medical History */}
         <TabsContent value="timeline" className="mt-4">
           <MedicalHistoryTimeline patientId={id!} />
+        </TabsContent>
+
+        {/* Lab Results Tab */}
+        <TabsContent value="lab-results" className="mt-4">
+          <LabResultsPanel patientId={id!} />
+        </TabsContent>
+
+        {/* Referrals Tab */}
+        <TabsContent value="referrals" className="mt-4">
+          <ReferralManagement patientId={id!} />
         </TabsContent>
 
         {/* Medical History Tab */}
