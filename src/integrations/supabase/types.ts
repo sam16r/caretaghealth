@@ -307,39 +307,87 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          city: string | null
+          clinic_address: string | null
+          clinic_name: string | null
+          consultation_type: string | null
           created_at: string
+          degree_certificate_url: string | null
           department: string | null
           email: string
           full_name: string
           id: string
+          id_proof_url: string | null
+          languages_spoken: string[] | null
           license_number: string | null
+          medical_council_number: string | null
+          mobile_number: string | null
           phone: string | null
+          primary_qualification: string | null
+          professional_photo_url: string | null
+          registering_authority: string | null
+          registration_year: number | null
           specialization: string | null
+          state: string | null
           updated_at: string
+          verification_status: string | null
+          years_of_experience: number | null
         }
         Insert: {
           avatar_url?: string | null
+          city?: string | null
+          clinic_address?: string | null
+          clinic_name?: string | null
+          consultation_type?: string | null
           created_at?: string
+          degree_certificate_url?: string | null
           department?: string | null
           email: string
           full_name: string
           id: string
+          id_proof_url?: string | null
+          languages_spoken?: string[] | null
           license_number?: string | null
+          medical_council_number?: string | null
+          mobile_number?: string | null
           phone?: string | null
+          primary_qualification?: string | null
+          professional_photo_url?: string | null
+          registering_authority?: string | null
+          registration_year?: number | null
           specialization?: string | null
+          state?: string | null
           updated_at?: string
+          verification_status?: string | null
+          years_of_experience?: number | null
         }
         Update: {
           avatar_url?: string | null
+          city?: string | null
+          clinic_address?: string | null
+          clinic_name?: string | null
+          consultation_type?: string | null
           created_at?: string
+          degree_certificate_url?: string | null
           department?: string | null
           email?: string
           full_name?: string
           id?: string
+          id_proof_url?: string | null
+          languages_spoken?: string[] | null
           license_number?: string | null
+          medical_council_number?: string | null
+          mobile_number?: string | null
           phone?: string | null
+          primary_qualification?: string | null
+          professional_photo_url?: string | null
+          registering_authority?: string | null
+          registration_year?: number | null
           specialization?: string | null
+          state?: string | null
           updated_at?: string
+          verification_status?: string | null
+          years_of_experience?: number | null
         }
         Relationships: []
       }
