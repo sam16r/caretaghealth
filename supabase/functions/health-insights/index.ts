@@ -12,6 +12,75 @@ serve(async (req) => {
   }
 
   try {
+    // Validate Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('Missing or invalid Authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Create client with user's auth context to validate token
+    const supabaseUserClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Validate the JWT token using getClaims
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabaseUserClient.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error('Invalid token:', claimsError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+    if (!userId) {
+      console.error('No user ID in token');
+      return new Response(
+        JSON.stringify({ error: 'Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create admin client for database operations
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Check user role
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .single();
+
+    if (roleError || !roleData) {
+      console.error('Failed to fetch user role:', roleError);
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - No role assigned' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userRole = roleData.role;
+
+    // Only doctors and admins can access health insights
+    if (userRole !== 'doctor' && userRole !== 'admin') {
+      console.error('User does not have required role:', userRole);
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - Insufficient permissions' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { patientId } = await req.json();
 
     if (!patientId) {
@@ -21,17 +90,40 @@ serve(async (req) => {
       );
     }
 
-    // Create Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // For doctors, verify they have a treatment relationship with this patient
+    if (userRole === 'doctor') {
+      const { data: appointmentData, error: appointmentError } = await supabaseAdmin
+        .from('appointments')
+        .select('id')
+        .eq('patient_id', patientId)
+        .eq('doctor_id', userId)
+        .limit(1);
 
-    // Fetch patient data
+      if (appointmentError) {
+        console.error('Failed to check treatment relationship:', appointmentError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to verify access' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!appointmentData || appointmentData.length === 0) {
+        console.error('Doctor has no treatment relationship with patient:', { doctorId: userId, patientId });
+        return new Response(
+          JSON.stringify({ error: 'Forbidden - No treatment relationship with this patient' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    console.log(`User ${userId} (${userRole}) requesting health insights for patient ${patientId}`);
+
+    // Fetch patient data using admin client
     const [patientResult, vitalsResult, prescriptionsResult, recordsResult] = await Promise.all([
-      supabase.from('patients').select('*').eq('id', patientId).single(),
-      supabase.from('vitals').select('*').eq('patient_id', patientId).order('recorded_at', { ascending: false }).limit(20),
-      supabase.from('prescriptions').select('*').eq('patient_id', patientId).order('created_at', { ascending: false }).limit(10),
-      supabase.from('medical_records').select('*').eq('patient_id', patientId).order('created_at', { ascending: false }).limit(10)
+      supabaseAdmin.from('patients').select('*').eq('id', patientId).single(),
+      supabaseAdmin.from('vitals').select('*').eq('patient_id', patientId).order('recorded_at', { ascending: false }).limit(20),
+      supabaseAdmin.from('prescriptions').select('*').eq('patient_id', patientId).order('created_at', { ascending: false }).limit(10),
+      supabaseAdmin.from('medical_records').select('*').eq('patient_id', patientId).order('created_at', { ascending: false }).limit(10)
     ]);
 
     const patient = patientResult.data;
