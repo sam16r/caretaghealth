@@ -115,7 +115,7 @@ export function Telemedicine({ patientName, patientId }: TelemedicineProps) {
           Video Consult
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl h-[90vh] max-h-[800px] flex flex-col bg-background border-border/50 shadow-xl p-0 overflow-hidden">
+      <DialogContent className="max-w-4xl w-[90vw] h-auto max-h-[85vh] flex flex-col bg-background border-border/50 shadow-xl p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-4 border-b border-border/50 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-primary/10">
