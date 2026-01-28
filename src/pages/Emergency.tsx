@@ -61,7 +61,11 @@ export default function Emergency() {
             {activeEmergencies?.length || 0} active emergencies
           </p>
         </div>
-        <Button variant="destructive" className="gap-2 shadow-lg shadow-emergency/25">
+        <Button 
+          variant="destructive" 
+          className="gap-2 shadow-lg shadow-emergency/25"
+          onClick={() => navigate('/scan')}
+        >
           <ScanLine className="h-4 w-4" />
           Scan Patient CareTag
         </Button>
