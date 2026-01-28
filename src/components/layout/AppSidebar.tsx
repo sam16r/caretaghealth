@@ -71,10 +71,16 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar m-2 rounded-xl overflow-hidden h-[calc(100vh-1rem)]">
       {/* Logo */}
-      <SidebarHeader className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-3 overflow-hidden">
+      <SidebarHeader className={cn(
+        "border-b border-sidebar-border transition-all duration-200",
+        collapsed ? "p-2 flex items-center justify-center" : "p-4"
+      )}>
+        <div className={cn(
+          "flex items-center overflow-hidden transition-all duration-200",
+          collapsed ? "justify-center" : "gap-3"
+        )}>
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary flex-shrink-0 transition-transform duration-200">
             <Activity className="h-5 w-5 text-primary-foreground" />
           </div>
@@ -91,7 +97,10 @@ export function AppSidebar() {
       </SidebarHeader>
 
       {/* Navigation */}
-      <SidebarContent className="px-2 py-3">
+      <SidebarContent className={cn(
+        "py-3 transition-all duration-200",
+        collapsed ? "px-1" : "px-2"
+      )}>
         <SidebarGroup>
           <p className={cn(
             "px-3 mb-2 text-xs font-medium text-sidebar-foreground/40 uppercase tracking-wider transition-all duration-200 ease-in-out overflow-hidden whitespace-nowrap",
@@ -112,7 +121,8 @@ export function AppSidebar() {
                       isActive={isActive}
                       tooltip={item.title}
                       className={cn(
-                        'transition-colors duration-150 rounded-md h-9',
+                        'transition-all duration-200 rounded-md h-9',
+                        collapsed && 'flex items-center justify-center',
                         isActive && !isEmergency && 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground',
                         isEmergency && !isActive && 'text-destructive hover:text-destructive hover:bg-destructive/10',
                         isActive && isEmergency && 'bg-destructive text-destructive-foreground hover:bg-destructive',
@@ -142,10 +152,13 @@ export function AppSidebar() {
       </SidebarContent>
 
       {/* User Section */}
-      <SidebarFooter className="p-2 border-t border-sidebar-border">
+      <SidebarFooter className={cn(
+        "border-t border-sidebar-border transition-all duration-200",
+        collapsed ? "p-2" : "p-2"
+      )}>
         <div className={cn(
-          'flex items-center gap-3 p-2 rounded-md hover:bg-sidebar-accent transition-all duration-200 ease-in-out overflow-hidden',
-          collapsed && 'justify-center'
+          'flex items-center rounded-md hover:bg-sidebar-accent transition-all duration-200 ease-in-out overflow-hidden',
+          collapsed ? 'justify-center p-1' : 'gap-3 p-2'
         )}>
           <Avatar className="h-8 w-8 flex-shrink-0 transition-transform duration-200">
             <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
