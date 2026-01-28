@@ -42,6 +42,8 @@ export function DoctorDashboard() {
       value: stats?.totalPatients || 0,
       change: '+12%',
       icon: Users,
+      iconColor: 'text-blue-600',
+      iconBg: 'bg-blue-50',
       onClick: () => navigate('/patients'),
     },
     {
@@ -49,6 +51,8 @@ export function DoctorDashboard() {
       value: stats?.todayAppointments || 0,
       change: null,
       icon: Calendar,
+      iconColor: 'text-violet-600',
+      iconBg: 'bg-violet-50',
       onClick: () => navigate('/appointments'),
     },
     {
@@ -56,6 +60,8 @@ export function DoctorDashboard() {
       value: stats?.activeEmergencies || 0,
       change: null,
       icon: AlertTriangle,
+      iconColor: (stats?.activeEmergencies || 0) > 0 ? 'text-red-600' : 'text-slate-400',
+      iconBg: (stats?.activeEmergencies || 0) > 0 ? 'bg-red-50' : 'bg-slate-50',
       highlight: (stats?.activeEmergencies || 0) > 0,
       onClick: () => navigate('/emergency'),
     },
@@ -64,6 +70,8 @@ export function DoctorDashboard() {
       value: stats?.activePrescriptions || 0,
       change: '+3',
       icon: FileText,
+      iconColor: 'text-emerald-600',
+      iconBg: 'bg-emerald-50',
       onClick: () => navigate('/prescriptions'),
     },
   ];
@@ -103,7 +111,7 @@ export function DoctorDashboard() {
         {statCards.map((stat) => (
           <Card 
             key={stat.title}
-            className="cursor-pointer hover:shadow-md transition-shadow"
+            className="cursor-pointer hover:shadow-md transition-all hover:border-border/80"
             onClick={stat.onClick}
           >
             <CardContent className="p-4">
@@ -116,23 +124,23 @@ export function DoctorDashboard() {
                     <div className="flex items-baseline gap-2">
                       <span className={cn(
                         "text-2xl font-semibold",
-                        stat.highlight && "text-destructive"
+                        stat.highlight && "text-red-600"
                       )}>
                         {stat.value}
                       </span>
                       {stat.change && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-emerald-600 font-medium">
                           {stat.change}
                         </span>
                       )}
                     </div>
                   )}
                 </div>
-                <div className="h-9 w-9 rounded-md bg-muted flex items-center justify-center">
-                  <stat.icon className={cn(
-                    "h-4 w-4",
-                    stat.highlight ? "text-destructive" : "text-muted-foreground"
-                  )} />
+                <div className={cn(
+                  "h-10 w-10 rounded-lg flex items-center justify-center",
+                  stat.iconBg
+                )}>
+                  <stat.icon className={cn("h-5 w-5", stat.iconColor)} />
                 </div>
               </div>
             </CardContent>
@@ -171,7 +179,7 @@ export function DoctorDashboard() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Clock className="h-4 w-4 text-muted-foreground" />
+                <Clock className="h-4 w-4 text-blue-500" />
                 Today's Schedule
               </CardTitle>
               <CardDescription>Your upcoming appointments</CardDescription>
@@ -198,7 +206,7 @@ export function DoctorDashboard() {
                   onClick={() => navigate(`/patients/${apt.patient_id}`)}
                   className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer"
                 >
-                  <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center text-foreground font-medium text-sm">
+                  <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 font-medium text-sm">
                     {(apt.patients as any)?.full_name?.split(' ').map((n: string) => n[0]).join('') || 'P'}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -245,7 +253,7 @@ export function DoctorDashboard() {
                 {emergencies && emergencies.length > 0 ? (
                   <AlertTriangle className="h-4 w-4" />
                 ) : (
-                  <Heart className="h-4 w-4 text-muted-foreground" />
+                  <Heart className="h-4 w-4 text-emerald-500" />
                 )}
                 Emergencies
               </CardTitle>
@@ -288,8 +296,8 @@ export function DoctorDashboard() {
                 ))
               ) : (
               <div className="text-center py-8">
-                  <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="font-medium">All Clear</p>
+                  <Activity className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
+                  <p className="font-medium text-emerald-600">All Clear</p>
                   <p className="text-sm text-muted-foreground">No emergencies</p>
                 </div>
               )}
@@ -300,7 +308,7 @@ export function DoctorDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
-                <User className="h-4 w-4 text-muted-foreground" />
+                <User className="h-4 w-4 text-violet-500" />
                 Recent Patients
               </CardTitle>
               <Button 
@@ -323,7 +331,7 @@ export function DoctorDashboard() {
                     onClick={() => navigate(`/patients/${patient.id}`)}
                     className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer"
                   >
-                    <div className="h-9 w-9 rounded-md bg-muted flex items-center justify-center text-foreground font-medium text-sm">
+                    <div className="h-9 w-9 rounded-lg bg-violet-50 flex items-center justify-center text-violet-600 font-medium text-sm">
                       {patient.full_name?.split(' ').map(n => n[0]).join('') || 'P'}
                     </div>
                     <div className="flex-1 min-w-0">
