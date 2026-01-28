@@ -71,7 +71,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar m-2 rounded-xl overflow-hidden h-[calc(100vh-1rem)]">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
       {/* Logo */}
       <SidebarHeader className={cn(
         "border-b border-sidebar-border transition-all duration-200",
