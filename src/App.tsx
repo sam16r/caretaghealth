@@ -19,6 +19,7 @@ import Reports from "./pages/Reports";
 import Devices from "./pages/Devices";
 import Settings from "./pages/Settings";
 import Analytics from "./pages/Analytics";
+import ScanCareTag from "./pages/ScanCareTag";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -122,6 +123,7 @@ const App = () => (
                   </AppLayout>
                 }
               />
+              <Route path="/scan" element={<ScanCareTag />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
