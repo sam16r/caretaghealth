@@ -67,15 +67,15 @@
     --color-amber: 38 75% 50%;
     --color-red: 0 65% 51%;
 
-    /* Sidebar - Lighter dark for logo visibility */
-    --sidebar-background: 220 30% 20%;
-    --sidebar-foreground: 213 31% 91%;
-    --sidebar-primary: 217 72% 53%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 30% 26%;
-    --sidebar-accent-foreground: 213 31% 91%;
-    --sidebar-border: 220 30% 26%;
-    --sidebar-ring: 217 72% 53%;
+    /* Sidebar - Brand blue */
+    --sidebar-background: 217 72% 45%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 217 72% 45%;
+    --sidebar-accent: 217 72% 52%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 217 72% 52%;
+    --sidebar-ring: 0 0% 100%;
   }
 
   .dark {
@@ -128,15 +128,15 @@
     --input: 222 30% 18%;
     --ring: 217 72% 58%;
 
-    /* Sidebar - Lighter dark for logo visibility */
-    --sidebar-background: 220 30% 14%;
-    --sidebar-foreground: 213 31% 91%;
-    --sidebar-primary: 217 72% 58%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 30% 20%;
-    --sidebar-accent-foreground: 213 31% 91%;
-    --sidebar-border: 220 30% 20%;
-    --sidebar-ring: 217 72% 58%;
+    /* Sidebar - Brand blue */
+    --sidebar-background: 217 72% 40%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 217 72% 40%;
+    --sidebar-accent: 217 72% 48%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 217 72% 48%;
+    --sidebar-ring: 0 0% 100%;
   }
 }
 
