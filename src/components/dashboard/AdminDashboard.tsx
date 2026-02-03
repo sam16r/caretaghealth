@@ -287,8 +287,9 @@ export function AdminDashboard() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium">{patient.gender}</p>
-                    <p className="text-xs text-muted-foreground">{patient.blood_group || 'Unknown'}</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {patient.emergency_contact_name || 'No contact'}
+                    </p>
                   </div>
                 </div>
               ))

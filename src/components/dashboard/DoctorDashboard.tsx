@@ -337,7 +337,7 @@ export function DoctorDashboard() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate text-sm">{patient.full_name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {patient.gender} • {patient.blood_group || 'Unknown'}
+                        {patient.caretag_id}
                       </p>
                     </div>
                     <ArrowRight className="h-4 w-4 text-muted-foreground" />
