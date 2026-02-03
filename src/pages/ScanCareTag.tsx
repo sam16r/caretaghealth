@@ -1,14 +1,15 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Wifi, CheckCircle2, User, UserPlus, X, Keyboard, Search, Loader2, ShieldCheck } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Wifi, CheckCircle2, User, UserPlus, X, Keyboard, Search, Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAccessSession } from '@/hooks/useAccessSession';
+import { useQuery } from '@tanstack/react-query';
 
-type ScanState = 'scanning' | 'manual' | 'detected' | 'loading' | 'creating' | 'session' | 'redirecting';
+type ScanState = 'scanning' | 'manual' | 'detected' | 'loading' | 'creating' | 'session' | 'redirecting' | 'mismatch';
 
 const generateCareTagId = () => {
   const year = new Date().getFullYear();
@@ -88,6 +89,9 @@ const triggerHapticFeedback = () => {
 
 export default function ScanCareTag() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const expectedPatientId = searchParams.get('patient');
+  
   const [scanState, setScanState] = useState<ScanState>('scanning');
   const [patient, setPatient] = useState<{ id: string; full_name: string; caretag_id: string; blood_group?: string | null } | null>(null);
   const [isNewPatient, setIsNewPatient] = useState(false);
@@ -95,6 +99,22 @@ export default function ScanCareTag() {
   const [isSearching, setIsSearching] = useState(false);
   const simulationCancelledRef = useRef(false);
   const { startSession } = useAccessSession();
+
+  // Fetch expected patient info if we're in targeted scan mode
+  const { data: expectedPatient } = useQuery({
+    queryKey: ['expected-patient', expectedPatientId],
+    queryFn: async () => {
+      if (!expectedPatientId) return null;
+      const { data, error } = await supabase
+        .from('patients')
+        .select('id, full_name, caretag_id, blood_group')
+        .eq('id', expectedPatientId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!expectedPatientId,
+  });
 
   // Helper to start session before navigating
   const startSessionAndNavigate = async (patientId: string) => {
@@ -149,6 +169,14 @@ export default function ScanCareTag() {
       await new Promise(resolve => setTimeout(resolve, 600));
 
       if (existingPatient) {
+        // SECURITY CHECK: If we have an expected patient, validate it matches
+        if (expectedPatient && existingPatient.id !== expectedPatient.id) {
+          setPatient(existingPatient);
+          setScanState('mismatch');
+          toast.error('Wrong CareTag! Please scan the correct patient\'s tag.');
+          return;
+        }
+        
         setPatient(existingPatient);
         setIsNewPatient(false);
         setScanState('loading');
@@ -156,7 +184,14 @@ export default function ScanCareTag() {
         await new Promise(resolve => setTimeout(resolve, 800));
         await startSessionAndNavigate(existingPatient.id);
       } else {
-        // Create new patient
+        // SECURITY CHECK: If we're in targeted mode, don't allow creating new patients
+        if (expectedPatient) {
+          setScanState('mismatch');
+          toast.error('CareTag not recognized. Please scan the correct patient\'s tag.');
+          return;
+        }
+        
+        // Create new patient (only allowed in general scan mode)
         setScanState('creating');
         setIsNewPatient(true);
         const newPatientData = generateRandomPatient();
@@ -200,6 +235,21 @@ export default function ScanCareTag() {
       setScanState('loading');
 
       try {
+        // TARGETED SCAN MODE: If we have an expected patient, only accept their tag
+        if (expectedPatient) {
+          // Simulate that the scanned tag matches the expected patient
+          // In real NFC/QR implementation, this would validate the actual scanned ID
+          setPatient(expectedPatient);
+          setIsNewPatient(false);
+          toast.success('Patient verified!');
+          
+          await new Promise(resolve => setTimeout(resolve, 800));
+          if (simulationCancelledRef.current) return;
+          await startSessionAndNavigate(expectedPatient.id);
+          return;
+        }
+        
+        // GENERAL SCAN MODE: Original behavior for general scanning
         const isNew = Math.random() > 0.3;
         
         if (isNew) {
@@ -276,17 +326,18 @@ export default function ScanCareTag() {
     if (scanState === 'scanning') {
       runScanSimulation();
     }
-  }, [navigate, scanState, onTagDetected]);
+  }, [navigate, scanState, onTagDetected, expectedPatient]);
 
   const isActive = scanState === 'scanning';
   const isSuccess = scanState === 'detected' || scanState === 'loading' || scanState === 'redirecting' || scanState === 'session';
   const isCreating = scanState === 'creating';
   const isStartingSession = scanState === 'session';
+  const isMismatch = scanState === 'mismatch';
 
   return (
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center z-50">
       {/* Close button */}
-      {(scanState === 'scanning' || scanState === 'manual') && (
+      {(scanState === 'scanning' || scanState === 'manual' || scanState === 'mismatch') && (
         <Button
           variant="ghost"
           size="icon"
@@ -300,8 +351,8 @@ export default function ScanCareTag() {
       <div className="flex flex-col items-center gap-8 px-6 max-w-sm w-full">
         {/* Scanner visual */}
         <div className="relative flex items-center justify-center">
-          {/* Outer rings - hide in manual mode */}
-          {scanState !== 'manual' && (
+          {/* Outer rings - hide in manual/mismatch mode */}
+          {scanState !== 'manual' && scanState !== 'mismatch' && (
             <>
               <div className={`absolute w-40 h-40 rounded-full border-2 transition-all duration-500 ${
                 isActive ? 'border-primary/30 animate-ping' : isSuccess ? 'border-success/20' : 'border-primary/20'
@@ -315,10 +366,13 @@ export default function ScanCareTag() {
 
           {/* Center circle */}
           <div className={`relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 ${
-            scanState === 'manual' ? 'bg-muted' : isActive ? 'bg-primary/10' : isCreating ? 'bg-primary/10' : isStartingSession ? 'bg-primary/10' : isSuccess ? 'bg-success/10' : 'bg-muted'
+            scanState === 'manual' ? 'bg-muted' : isMismatch ? 'bg-destructive/10' : isActive ? 'bg-primary/10' : isCreating ? 'bg-primary/10' : isStartingSession ? 'bg-primary/10' : isSuccess ? 'bg-success/10' : 'bg-muted'
           }`}>
             {scanState === 'manual' && (
               <Keyboard className="h-10 w-10 text-muted-foreground" />
+            )}
+            {isMismatch && (
+              <AlertCircle className="h-10 w-10 text-destructive" />
             )}
             {isActive && (
               <Wifi className="h-10 w-10 text-primary animate-pulse" />
@@ -340,11 +394,22 @@ export default function ScanCareTag() {
           {scanState === 'scanning' && (
             <>
               <h1 className="text-lg font-semibold text-foreground">
-                Ready to Scan
+                {expectedPatient ? 'Verify Patient' : 'Ready to Scan'}
               </h1>
-              <p className="text-sm text-muted-foreground">
-                Hold the CareTag near the device
-              </p>
+              {expectedPatient ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Scan <span className="font-medium text-foreground">{expectedPatient.full_name}</span>'s CareTag
+                  </p>
+                  <p className="text-xs text-primary font-mono">
+                    {expectedPatient.caretag_id}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Hold the CareTag near the device
+                </p>
+              )}
               <div className="flex items-center justify-center gap-1 pt-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -362,6 +427,41 @@ export default function ScanCareTag() {
             </>
           )}
 
+          {scanState === 'mismatch' && (
+            <div className="w-full max-w-xs space-y-4">
+              <div className="text-center">
+                <h1 className="text-lg font-semibold text-destructive">
+                  Wrong CareTag
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {expectedPatient ? (
+                    <>Please scan <span className="font-medium text-foreground">{expectedPatient.full_name}</span>'s CareTag</>
+                  ) : (
+                    'The scanned tag does not match the expected patient'
+                  )}
+                </p>
+                {patient && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Scanned: {patient.full_name} ({patient.caretag_id})
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button onClick={switchToScanning} className="w-full gap-2">
+                  <Wifi className="h-4 w-4" />
+                  Try Again
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => navigate(-1)}
+                  className="w-full text-muted-foreground"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
           {scanState === 'manual' && (
             <div className="w-full max-w-xs space-y-4">
               <div className="text-center">
@@ -369,15 +469,24 @@ export default function ScanCareTag() {
                   Manual Entry
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  Enter the CareTag ID printed on the tag
+                  {expectedPatient ? (
+                    <>Enter <span className="font-medium text-foreground">{expectedPatient.full_name}</span>'s CareTag ID</>
+                  ) : (
+                    'Enter the CareTag ID printed on the tag'
+                  )}
                 </p>
+                {expectedPatient && (
+                  <p className="text-xs text-primary font-mono mt-1">
+                    Expected: {expectedPatient.caretag_id}
+                  </p>
+                )}
               </div>
               <form onSubmit={handleManualSearch} className="space-y-3">
                 <div className="space-y-2">
                   <Label htmlFor="caretag-id" className="text-sm">CareTag ID</Label>
                   <Input
                     id="caretag-id"
-                    placeholder="e.g., CT-2026-1234"
+                    placeholder={expectedPatient ? expectedPatient.caretag_id : "e.g., CT-2026-1234"}
                     value={manualId}
                     onChange={(e) => setManualId(e.target.value.toUpperCase())}
                     className="text-center font-mono"
@@ -394,7 +503,7 @@ export default function ScanCareTag() {
                   ) : (
                     <Search className="h-4 w-4" />
                   )}
-                  {isSearching ? 'Searching...' : 'Search Patient'}
+                  {isSearching ? 'Verifying...' : expectedPatient ? 'Verify CareTag' : 'Search Patient'}
                 </Button>
               </form>
               <Button 

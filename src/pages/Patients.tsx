@@ -135,7 +135,7 @@ export default function Patients() {
                     ? 'cursor-pointer hover:border-primary/50 hover:shadow-md border-primary/30' 
                     : 'opacity-75'
                 }`}
-                onClick={() => isActive ? navigate(`/patients/${patient.id}`) : navigate('/scan')}
+                onClick={() => isActive ? navigate(`/patients/${patient.id}`) : navigate(`/scan?patient=${patient.id}`)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
