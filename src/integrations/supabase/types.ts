@@ -967,6 +967,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_patients_limited: {
+        Args: never
+        Returns: {
+          caretag_id: string
+          emergency_contact_name: string
+          emergency_contact_phone: string
+          full_name: string
+          id: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

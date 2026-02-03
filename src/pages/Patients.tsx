@@ -15,14 +15,12 @@ export default function Patients() {
   const [search, setSearch] = useState('');
   const { data: activeSessions } = useActiveSessions();
 
-  // Get only limited patient info - no medical data
+  // Get only limited patient info using secure RPC function
   const { data: patients, isLoading } = useQuery({
     queryKey: ['patients-limited'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('patients')
-        .select('id, full_name, caretag_id, emergency_contact_name, emergency_contact_phone')
-        .order('created_at', { ascending: false });
+        .rpc('get_patients_limited');
 
       if (error) throw error;
       return data;
