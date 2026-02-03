@@ -967,6 +967,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_dashboard_stats: { Args: never; Returns: Json }
       get_patients_limited: {
         Args: never
         Returns: {

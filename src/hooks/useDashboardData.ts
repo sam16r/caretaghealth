@@ -1,26 +1,29 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+interface DashboardStats {
+  total_patients: number;
+  today_appointments: number;
+  active_prescriptions: number;
+  active_emergencies: number;
+}
+
 export function useDashboardStats() {
   return useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayISO = today.toISOString();
+      // Use secure RPC function that bypasses RLS but only returns counts
+      const { data, error } = await supabase.rpc('get_dashboard_stats');
 
-      const [patientsRes, appointmentsRes, prescriptionsRes, emergencyRes] = await Promise.all([
-        supabase.from('patients').select('id', { count: 'exact', head: true }),
-        supabase.from('appointments').select('id', { count: 'exact', head: true }).gte('scheduled_at', todayISO),
-        supabase.from('prescriptions').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-        supabase.from('emergency_records').select('id', { count: 'exact', head: true }).is('resolved_at', null),
-      ]);
+      if (error) throw error;
+
+      const stats = data as unknown as DashboardStats;
 
       return {
-        totalPatients: patientsRes.count || 0,
-        todayAppointments: appointmentsRes.count || 0,
-        activePrescriptions: prescriptionsRes.count || 0,
-        activeEmergencies: emergencyRes.count || 0,
+        totalPatients: stats?.total_patients || 0,
+        todayAppointments: stats?.today_appointments || 0,
+        activePrescriptions: stats?.active_prescriptions || 0,
+        activeEmergencies: stats?.active_emergencies || 0,
       };
     },
   });
