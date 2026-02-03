@@ -26,18 +26,16 @@ export function useDashboardStats() {
   });
 }
 
+// Returns limited patient info (no active session required)
 export function useRecentPatients(limit = 5) {
   return useQuery({
-    queryKey: ['recent-patients', limit],
+    queryKey: ['recent-patients-limited', limit],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('patients')
-        .select('*')
-        .order('updated_at', { ascending: false })
-        .limit(limit);
+      const { data, error } = await supabase.rpc('get_patients_limited');
 
       if (error) throw error;
-      return data;
+      // Return limited data - only name, caretag, emergency contact
+      return (data || []).slice(0, limit);
     },
   });
 }
